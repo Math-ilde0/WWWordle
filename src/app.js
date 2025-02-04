@@ -2,10 +2,6 @@
 
 import Game from './Game.js';
 
-// Nombre de tentatives max
-const MAX_ATTEMPTS = 6;
-
-// Initialisation 
-const game = new Game(MAX_ATTEMPTS);
-
-game.start();
+document.addEventListener('DOMContentLoaded', () => {
+    const game = new Game(document.querySelector('.board'), document.querySelector('.message'));
+});

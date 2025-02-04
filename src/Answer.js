@@ -4,64 +4,72 @@
 import Game from './Game.js';
 
 class Answer {
-  constructor() {
-    this.form = this.createForm();
-    this.inputs = this.form.querySelectorAll('input.letter');
-    this.form.inert = true;
-    document.querySelector('main.board').appendChild(this.form);
-    this.inputs.forEach((input, index) => {
-      input.addEventListener('keyup', (e) => this.keyUp(e, index));
+  constructor(game, index) {
+  this.game = game;
+  this.index = index;
+  this.form = document.querySelector(`.board #row-${index}`);
+  if (!this.form) {
+    throw new Error(`Form with id "row-${index}" not found`);
+  }
+  this.inputs = Array.from(this.form.querySelectorAll('input.letter'));
+  this.form.addEventListener('submit', this.handleSubmit.bind(this));
+}
+
+  activate() {
+    this.form.removeAttribute('inert');
+  }
+
+  deactivate() {
+    this.form.setAttribute('inert', '');
+  }
+
+  focus() {
+    this.inputs[0].focus();
+  }
+
+  handleSubmit(event) {
+    event.preventDefault();
+
+    const word = this.inputs.map(input => input.value).join('');
+    if (!this.isValidWord(word)) {
+      return;
+    }
+
+    fetch('https://progweb-wwwordle-api.onrender.com/guess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guess: word })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.status === 'invalid') {
+        this.game.showMessage(data.message);
+        return;
+      }
+      data.feedback.forEach((letter, i) => {
+        this.inputs[i].classList.add(letter.status);
+      });
+    })
+    .catch(error => {
+      this.game.showMessage('Erreur de réseau');
     });
   }
 
-  #createForm() {
-    const form = document.createElement('form');
-    form.classList.add('row');
-    form.id = 'row-0';
-    for (let i = 0; i < 5; i++) {
-      const input = document.createElement('input');
-      input.classList.add('letter');
-      input.type = 'text';
-      input.name = `letter-${i}`;
-      input.id = `row-0--${i}`;
-      input.maxLength = 1;
-      form.appendChild(input);
+  isValidWord(word) {
+    if (word.length !== 5) {
+      this.game.showMessage('Word must be 5 letters long');
+      return false;
     }
-    const submitInput = document.createElement('input');
-    submitInput.type = 'submit';
-    submitInput.hidden = true;
-    form.appendChild(submitInput);
-    return form;
-  }
-
-  isAlphaNumericKey(key) {
-	return /^([\x30-\x39]|[\x61-\x7a])$/i.test(key);
-}
-
-  keyUp(e, index) {
-    if (this.isAlphaNumericKey(e.key) || e.key === 'ArrowRight') {
-      if (index < this.inputs.length - 1) {
-        this.inputs[index + 1].focus();
-      }
-    } else if (e.key === 'ArrowLeft') {
-      if (index > 0) {
-        this.inputs[index - 1].focus();
-      }
+    if (!/^[a-zA-Z]+$/.test(word)) {
+      this.game.showMessage('Word must contain only letters');
+      return false;
     }
-  }
-
-  toggle() {
-    if (this.form.inert) {
-      this.form.removeAttribute('inert');
-      this.inputs[0].focus();
-    } else {
-      this.form.inert = true;
-    }
-  }
-
-  focusFirstInput() {
-    this.inputs[0].focus();
+    return true;
   }
 }
-
 export default Answer;
